@@ -1,0 +1,130 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+
+  # Maszyna serwera Wazuh
+  config.vm.define "wazuh-serwer" do |wazuh|
+    wazuh.vm.box = "CrunchyData/u24"
+    wazuh.vm.box_version = "1729849341"
+    wazuh.vm.hostname = "wazuh-serwer"
+    wazuh.vm.provider "virtualbox" do |vb|
+      vb.name = "wazuh-serwer"
+      vb.memory = 7168
+      vb.cpus = 4
+      vb.gui = true
+      vb.customize ["modifyvm", :id, "--groups", "/WAZUH/wazuh"]
+    end
+    wazuh.vm.network "private_network", ip: "192.168.60.10"
+    wazuh.vm.network "forwarded_port", guest: 443, host: 443
+wazuh.vm.provision :shell, path: "bootstrap_serwer.sh"
+  end
+
+  # Maszyna Agent 1
+  config.vm.define "wazuh-agent1" do |agent1|
+    agent1.vm.box = "CrunchyData/u24"
+    agent1.vm.box_version = "1729849341"
+    agent1.vm.hostname = "wazuh-agent1"
+    agent1.vm.provider "virtualbox" do |vb|
+      vb.name = "wazuh-agent1"
+      vb.memory = 1024
+      vb.cpus = 1
+      vb.gui = true
+      vb.customize ["modifyvm", :id, "--groups", "/WAZUH/wazuh"]
+    end
+    agent1.vm.network "private_network", ip: "192.168.60.11"
+    agent1.vm.provision :shell, path: "bootstrap.sh"
+  end
+
+  # Maszyna Agent 2
+  config.vm.define "wazuh-agent2" do |agent2|
+    agent2.vm.box = "CrunchyData/u24"
+    agent2.vm.box = "bento/ubuntu-22.04"
+    agent2.vm.box_version = "202407.23.0"
+    agent2.vm.provider "virtualbox" do |vb|
+      vb.name = "wazuh-agent2"
+      vb.memory = 768
+      vb.cpus = 1
+      vb.gui = true
+      vb.customize ["modifyvm", :id, "--groups", "/WAZUH/wazuh"]
+    end
+    agent2.vm.network "private_network", ip: "192.168.60.12"
+agent2.vm.provision :shell, path: "bootstrap.sh"
+  end
+
+# Maszyna Agent 3 - Ubuntu 14.04
+config.vm.define "wazuh-agent3" do |agent3|
+  agent3.vm.box = "bento/ubuntu-14.04"
+agent3.vm.box_version = "201808.24.0"
+  agent3.vm.hostname = "wazuh-agent3"
+  agent3.vm.provider "virtualbox" do |vb|
+    vb.name = "wazuh-agent3"
+    vb.memory = 512
+    vb.cpus = 1
+    vb.gui = true
+    vb.customize ["modifyvm", :id, "--groups", "/WAZUH/wazuh"]
+  end
+
+  agent3.vm.network "private_network", ip: "192.168.60.13"
+agent3.vm.provision :shell, path: "bootstrap_14.sh"
+end
+
+# Maszyna Agent 4 - Ubuntu 16.04
+config.vm.define "wazuh-agent4" do |agent4|
+  agent4.vm.box = "bento/ubuntu-16.04"
+agent4.vm.box_version = "202212.11.0"
+  agent4.vm.hostname = "wazuh-agent4"
+  agent4.vm.provider "virtualbox" do |vb|
+    vb.name = "wazuh-agent4"
+    vb.memory = 512
+    vb.cpus = 1
+    vb.gui = true
+    vb.customize ["modifyvm", :id, "--groups", "/WAZUH/wazuh"]
+  end
+
+  agent4.vm.network "private_network", ip: "192.168.60.14"
+agent4.vm.provision :shell, path: "bootstrap.sh"
+end
+
+# Maszyna Agent 5 - Ubuntu 18.04
+config.vm.define "wazuh-agent5" do |agent5|
+  agent5.vm.box = "generic/ubuntu1804"
+  agent5.vm.hostname = "wazuh-agent5"
+  agent5.vm.provider "virtualbox" do |vb|
+    vb.name = "wazuh-agent5"
+    vb.memory = 512
+    vb.cpus = 1
+    vb.gui = true
+    vb.customize ["modifyvm", :id, "--groups", "/WAZUH/wazuh"]
+  end
+
+  agent5.vm.network "private_network", ip: "192.168.60.15"
+  agent5.vm.provision :shell, path: "bootstrap.sh"
+end
+
+# Maszyna Agent 6 - Windows Server 2016
+config.vm.define "wazuh-agent6" do |agent6|
+  agent6.vm.box = "jacqinthebox/windowsserver2016"
+   agent6.vm.box_version = "1.4"
+  agent6.vm.hostname = "wazuh-agent6"
+  agent6.vm.boot_timeout = 120
+  agent6.vm.provider "virtualbox" do |vb|
+    vb.name = "wazuh-agent6"
+    vb.memory = 2048
+    vb.cpus = 2
+    vb.gui = true
+    vb.customize ["modifyvm", :id, "--groups", "/WAZUH/wazuh"]
+  end
+
+  agent6.vm.network "private_network", ip: "192.168.60.16"
+  agent6.vm.provision "shell", inline: <<-SHELL
+   tzutil /s "Central European Standard Time"
+    w32tm /config /manualpeerlist:"0.pl.pool.ntp.org" /syncfromflags:manual /reliable:YES /update
+    w32tm /resync
+  Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.9.1-1.msi -OutFile $env:tmp\\wazuh-agent
+  msiexec.exe /i $env:tmp\\wazuh-agent /q WAZUH_MANAGER='192.168.60.10' 
+  Start-Sleep -Seconds 5
+  Start-Service Wazuh
+  SHELL
+end
+end
